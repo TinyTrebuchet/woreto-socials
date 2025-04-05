@@ -15,17 +15,23 @@ public class LinkedinMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(LinkedinMain.class);
 
     public static void main(String[] args) {
-        if (args.length < 4) {
-            LOGGER.error("Args: <content> <media_path> <emailId> <groupId1> [<groupId2> ...]");
-            return;
-        }
+        String post =
+"""
+Hello World.
+This is a multi line post;
+""";
+
+        String mediaPath = "/home/tinytrebuchet/Downloads/akira-toriyama.jpg";
+        String emailId = "gaurav.guleria2907@gmail.com";
+        List<String> groupIds = List.of("14633050");
+
         ApplicationContext applicationContext = SpringApplication.run(LinkedinMain.class, args);
         LinkedinService linkedinService = applicationContext.getBean(LinkedinService.class);
-        List<String> targetGroupIds = Arrays.asList(args).subList(3, args.length);
         try {
-            linkedinService.createPosts(args[0], args[1], args[2], targetGroupIds);
+            linkedinService.createPosts(post, mediaPath, emailId, groupIds);
         } catch (Exception e) {
             LOGGER.error("Error creating posts", e);
         }
+        System.exit(0);
     }
 }

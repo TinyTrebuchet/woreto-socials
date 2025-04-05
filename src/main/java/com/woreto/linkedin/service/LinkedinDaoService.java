@@ -19,10 +19,11 @@ public class LinkedinDaoService {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, emailId);
             ResultSet rs = stmt.executeQuery();
-            rs.next();
-            String fullName = rs.getString("fullName");
-            String password = rs.getString("password");
-            return new LinkedinAccount(emailId, password, fullName);
+            if (rs.next()) {
+                String fullName = rs.getString("fullName");
+                String password = rs.getString("password");
+                return new LinkedinAccount(emailId, password, fullName);
+            }
         } catch (SQLException e) {
             LOGGER.error("Error fetching linkedin account for emailId {}", emailId, e);
         }

@@ -62,11 +62,17 @@ public class LinkedinService {
     }
 
     private void login(LinkedinAccount account) throws Exception {
+        if (bot.restoreCookies("LINKEDIN:" + account.getEmailId(), BASE_URL)) {
+            if (account.getFullName().equals(getLoggedInUser())) {
+                return;
+            }
+        }
+
         bot.navigateTo(LOGIN_PAGE, 3);
         bot.findAndType(By.id("username"), account.getEmailId(), 3);
         bot.findAndType(By.id("password"), account.getPassword(), 3);
         bot.findAndClick(By.xpath("//button[@aria-label='Sign in']"), 6);
-        bot.saveCookies();
+        bot.saveCookies("LINKEDIN:" + account.getEmailId());
         LOGGER.info("Logged in with {}", account.getEmailId());
     }
 
@@ -76,8 +82,6 @@ public class LinkedinService {
 
     private String getLoggedInUser() throws Exception {
         bot.navigateTo(BASE_URL, 2);
-        bot.restoreCookies();
-        bot.navigateTo(BASE_URL, 4);
         try {
             return bot.findAndGet(By.className("profile-card-name"));
         } catch (NoSuchElementException e) {

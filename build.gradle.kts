@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    id("application")
     id("org.springframework.boot") version "3.4.3"
 }
 
@@ -20,6 +21,10 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+}
+
+application {
+    mainClass.set(if (project.hasProperty("mainClass")) project.findProperty("mainClass") as String else "NULL");
 }
 
 tasks.test {

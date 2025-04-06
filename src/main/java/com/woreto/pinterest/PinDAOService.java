@@ -68,7 +68,7 @@ public class PinDAOService {
     }
 
     public PinterestPin fetchUnpostedPin(String keyword) {
-        String sql = "SELECT * FROM pins WHERE keyword = ? AND mediaType = 'VIDEO' AND posted = false ORDER BY reactionCount DESC;";
+        String sql = "SELECT * FROM pins WHERE keyword = ? AND posted = false ORDER BY reactionCount DESC;";
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, keyword);

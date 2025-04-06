@@ -1,6 +1,5 @@
 package com.woreto.facebook.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.woreto.ChromeBot;
@@ -8,7 +7,6 @@ import com.woreto.facebook.models.FBPage;
 import com.woreto.facebook.models.FBPagePost;
 import com.woreto.pinterest.PinService;
 import org.openqa.selenium.By;
-import org.openqa.selenium.devtools.v131.network.Network;
 import org.openqa.selenium.devtools.v131.network.model.Request;
 import org.openqa.selenium.devtools.v131.network.model.RequestId;
 import org.openqa.selenium.devtools.v131.network.model.ResponseReceived;
@@ -21,6 +19,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 @Service
 public class FBPageService {
@@ -60,31 +59,35 @@ public class FBPageService {
         bot.navigateTo(PAGE_URL + page.getId(), 4);
         bot.findAndClickSpan("Switch Now", 4);
         bot.currUser = page.getName(); // Switched to Page profile
-        bot.findAndClickSpan("Photo/video", 3);
+        bot.findAndClickSpan("Photo/video", 2);
         bot.findAndType(By.xpath("//span[text()='Create post']/following::div[@role='textbox']"), "#dbz #anime #goku", 1);
         bot.findAndUpload(By.xpath("//span[text()='Create post']/following::input[1]"), mediaPath, 8);
 
         CompletableFuture<FBPagePost> postFuture;
         if (bot.findAndGet(By.xpath("//span[text()='Reel options']")) != null) {
             // reels
-            bot.findAndClick(By.xpath("//span[text()='Reel options']/following::span[text()='Next'])"), 3);
-            postFuture = attachListener();
-            bot.findAndClick(By.xpath("//span[text()='Reel options']/following::span[text()='Publish'])"), 8);
+            bot.findAndClick(By.xpath("//span[text()='Previous']/following::span[text()='Next']"), 2);
+            postFuture = attachListener(this::reelPublishedListener);
+            bot.findAndClick(By.xpath("//span[text()='Previous']/following::span[text()='Publish']"), 8);
         } else {
             // images
             bot.findAndClickSpan("Next", 4);
-            postFuture = attachListener();
+            postFuture = attachListener(this::postPublishedListener);
             bot.findAndClickSpan("Post", 12);
         }
 
         bot.detachListeners();
-        return postFuture.get(1, TimeUnit.SECONDS);
+        FBPagePost post = postFuture.get(1, TimeUnit.SECONDS);
+        post.setActorId(page.getId());
+        post.setUrl(getPagePostShareUrl(page.getId(), post.getStoryId()));
+        fbDaoService.savePagePost(post);
+        return post;
     }
 
-    private CompletableFuture<FBPagePost> attachListener() {
+    private CompletableFuture<FBPagePost> attachListener(Function<ResponseReceived, FBPagePost> listener) {
         final CompletableFuture<FBPagePost> postFuture = new CompletableFuture<>();
         bot.attachListener(responseReceived -> {
-            FBPagePost publishedPost = postPublishedListener(responseReceived);
+            FBPagePost publishedPost = listener.apply(responseReceived);
             if (publishedPost != null) {
                 postFuture.complete(publishedPost);
             }
@@ -92,7 +95,38 @@ public class FBPageService {
         return postFuture;
     }
 
+    private FBPagePost reelPublishedListener(ResponseReceived responseReceived) {
+        try {
+            String responseStr = filterAndFetchPostPublishedResponse(responseReceived);
+            if (responseStr == null) {
+                return null;
+            }
+            JsonNode response = new ObjectMapper().readTree(responseStr);
+            String postId = response.get("data").get("story_create").get("post_id").asText();
+            return new FBPagePost(postId, FBPagePost.Type.REEL);
+        } catch (Exception e) {
+            LOGGER.error("Error with published reel listener", e);
+            return null;
+        }
+    }
+
     private FBPagePost postPublishedListener(ResponseReceived responseReceived) {
+        try {
+            String responseStr = filterAndFetchPostPublishedResponse(responseReceived);
+            if (responseStr == null) {
+                return null;
+            }
+            JsonNode response = new ObjectMapper().readTree(responseStr);
+            JsonNode story = response.get("data").get("story_create").get("story");
+            String storyId = story.get("legacy_story_hideable_id").asText();
+            return new FBPagePost(storyId, FBPagePost.Type.IMAGE);
+        } catch (Exception e) {
+            LOGGER.error("Error with published post listener");
+            return null;
+        }
+    }
+
+    private String filterAndFetchPostPublishedResponse(ResponseReceived responseReceived) {
         String url = responseReceived.getResponse().getUrl();
         if (!url.contains("facebook.com/api/graphql")) {
             return null;
@@ -107,27 +141,10 @@ public class FBPageService {
             return null;
         }
 
-        Network.GetResponseBodyResponse response = bot.getResponseBody(requestId);
-        if (response == null) {
-            LOGGER.warn("No response found for requestId {}", requestId);
-            return null;
-        }
-        try {
-            FBPagePost post = scrapePublishedPost(response.getBody());
-            fbDaoService.savePagePost(post);
-            return post;
-        } catch (Exception e) {
-            LOGGER.error("Error parsing json response {}", response.getBody(), e);
-        }
-        return null;
+        return bot.getResponseBody(requestId).getBody();
     }
 
-    private FBPagePost scrapePublishedPost(String responseStr) throws JsonProcessingException {
-        JsonNode response = new ObjectMapper().readTree(responseStr);
-        JsonNode story = response.get("data").get("story_create").get("story");
-        String url = story.get("url").asText();
-        String actorId = story.get("default_actor").get("id").asText();
-        String storyId = story.get("legacy_story_hideable_id").asText();
-        return new FBPagePost(storyId, actorId, url);
+    private String getPagePostShareUrl(String pageId, String postId) {
+        return "https://www.facebook.com/permalink.php?story_fbid=" + postId + "&id=" + pageId;
     }
 }

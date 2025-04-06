@@ -24,8 +24,13 @@ public class FBGroupService {
 
     public void shareWith(FBGroup group, FBPagePost post, FBPage page) throws Exception {
         bot.navigateTo(post.getUrl(), 4);
-        bot.findAndClick(By.xpath("//span[text()=\"" + page.getName() + "'s Post\"]"
-                + "/following::span[text()='Share']"), 3);
+        if (post.getType() == FBPagePost.Type.REEL) {
+            bot.findAndClick(By.xpath("//div[@aria-label='Share']"), 3);
+        } else {
+            bot.findAndClick(By.xpath("//span[text()=\"" + page.getName() + "'s Post\"]"
+                    + "/following::span[text()='Share']"), 3);
+        }
+
         bot.findAndClickSpan("Group", 3);
         bot.findAndType(By.xpath("//input[@placeholder='Search for groups']"), group.getName(), 3);
         bot.findAndClick(By.xpath("//span[text()='Share to a group']"

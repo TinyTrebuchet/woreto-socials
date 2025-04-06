@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS fb_page_post (
     storyId TEXT PRIMARY KEY,
     actorId TEXT NOT NULL,
     url TEXT NOT NULL,
+    type TEXT NOT NULL,
     sharedWith TEXT,
     createdTime LONG NOT NULL,
     modifiedTime LONG NOT NULL,

@@ -96,15 +96,16 @@ public class FBDaoService {
     }
 
     public void savePagePost(FBPagePost post) {
-        String sql = "INSERT INTO fb_page_post VALUES (?, ?, ?, ?, ?, ?);";
+        String sql = "INSERT INTO fb_page_post VALUES (?, ?, ?, ?, ?, ?, ?);";
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, post.getStoryId());
             stmt.setString(2, post.getActorId());
             stmt.setString(3, post.getUrl());
-            stmt.setString(4, String.join(",", post.getSharedWith()));
-            stmt.setLong(5, post.getCreatedTime());
-            stmt.setLong(6, post.getModifiedTime());
+            stmt.setString(4, post.getType().name());
+            stmt.setString(5, String.join(",", post.getSharedWith()));
+            stmt.setLong(6, post.getCreatedTime());
+            stmt.setLong(7, post.getModifiedTime());
             stmt.executeUpdate();
         } catch (SQLException e) {
             LOGGER.error("Error saving {}", post, e);
@@ -122,6 +123,7 @@ public class FBDaoService {
                     rs.getString("storyId"),
                     rs.getString("actorId"),
                     rs.getString("url"),
+                    FBPagePost.Type.valueOf(rs.getString("type")),
                     Arrays.asList(rs.getString("sharedWith").split(",")),
                     rs.getLong("createdTime"),
                     rs.getLong("modifiedTime")
